@@ -12,7 +12,10 @@ app.use(AV.express());
 app.listen(process.env.LEANCLOUD_APP_PORT);
 
 app.get('/', function(req, res) {
-  res.render('index', {title: 'Hello world'});
+  /*res.render('index', {title: 'Hello world'});*/
+    response.writeHead(200, {"Content-Type": "text/plain"});  
+    response.write("Hello World");  
+    response.end();
 });
 
 app.get('/time', function(req, res) {
