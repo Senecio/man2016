@@ -1,0 +1,317 @@
+<!doctype html>
+<html >
+<head>
+    <meta charset="UTF-8">
+    <title>工具</title>
+    <style>
+        /*新增加此条样式*/
+        * {
+            margin:0px;
+            font-family: monospace;
+        }
+        html,body{
+            width:100%;
+            height:100%;
+        }
+    </style>
+    <script src="./js/libs/screenfull.min.js"></script>
+    <script src="./js/Engine.js"></script>
+    <script src="./js/Table.js"></script>
+    <script src="./js/BulletBatch.js"></script>
+    <script>
+    
+        
+        // 为简单使用库,声明常用全局函数
+        Vec2 = engine.commom.Vec2;
+        Util = engine.commom.Util;
+        Sprite = engine.core.Sprite;
+        Input = engine.core.Input;
+        Resource = engine.core.Resource;
+
+        var shipSprites = engine.core.Resource.GetImage("./images/sprites.png");
+
+        var shipSheet = new engine.core.SpriteSheet();
+        shipSheet.SetImage(shipSprites);
+        shipSheet.Add("ship", 0, 0, 38, 42);
+        shipSheet.Add("enemy_purple", 37, 0, 42, 43);
+        shipSheet.Add("enemy_bee", 79, 0, 36, 43);
+        shipSheet.Add("enemy_ship", 116, 0, 41, 43);
+        shipSheet.Add("enemy_circle", 158, 0, 32, 33);
+        shipSheet.Add("explosion1", 0, 64, 64, 64);
+        shipSheet.Add("explosion2", 64, 64, 64, 64);
+        shipSheet.Add("explosion3", 128, 64, 64, 64);
+        shipSheet.Add("explosion4", 192, 64, 64, 64);
+        shipSheet.Add("explosion5", 256, 64, 64, 64);
+        shipSheet.Add("explosion6", 320, 64, 64, 64);
+        shipSheet.Add("explosion7", 384, 64, 64, 64);
+        shipSheet.Add("explosion8", 448, 64, 64, 64);
+        shipSheet.Add("explosion9", 512, 64, 64, 64);
+        shipSheet.Add("explosion10", 576, 64, 64, 64);
+        shipSheet.Add("explosion11", 640, 64, 64, 64);
+        shipSheet.Add("explosion12", 704, 64, 64, 64);
+        
+        var bulletSprites = engine.core.Resource.GetImage("./images/turbo.png");
+        var bulletSheet = new engine.core.SpriteSheet();
+        bulletSheet.SetImage(bulletSprites);
+        bulletSheet.Add("1", 0, 0, 5, 20);
+        bulletSheet.Add("2", 5, 0, 5, 20);
+        bulletSheet.Add("3", 10, 0, 5, 20);
+        
+        function RemoveFormParent(element) {
+            var parentElement = element.parentNode;
+                if(parentElement){
+                parentElement.removeChild(element);
+            }
+        }
+        
+        function Game() {
+
+        }
+        
+        Game.prototype.SetupUI = function() {
+            var game = this;
+            
+            var btnShow = document.getElementById('ShowJson');
+            var cExport = document.getElementById('ExportJson'); 
+            var divItems = document.getElementById('EditItems');
+            var btnRm = document.getElementById('AddEditItem');
+            var btnCls = document.getElementById('ClearBullets');
+            
+            btnShow.onclick = function() {
+                var bulletBatchShooter = [];
+                var childs = divItems.children;
+                for(var i = 0; i < childs.length; ++i) {
+                    var id = undefined, time = undefined, rot = undefined;
+                    var o = childs[i];
+                    for (var j = 0; j < o.children.length; ++j) {
+                        var co = o.children[j];
+                        if (co.id === 'tid') {
+                            id = parseInt(co.value);
+                        }
+                        else if (co.id === 'time') {
+                            time = parseFloat(co.value);
+                        }
+                        else if (co.id === 'rot') {
+                            rot = parseInt(co.value);
+                        }
+                        if(id !== undefined && time !== undefined && rot !== undefined) {
+                            break;
+                        }
+                    }
+                    
+                    if (id && time) {
+                        bulletBatchShooter.push({"id":id, "time":time, "rot":rot});
+                    }
+                }
+                if (childs.length > 0) {
+                    var txt = JSON.stringify(bulletBatchShooter);
+                    cExport.innerHTML = txt;
+                }
+            }
+            
+
+            btnRm.onclick = function () {
+                var div = document.createElement("div");
+                div.setAttribute("style","border-color:#888;border-width: 2px;border-style: solid; margin:2px;padding:1px;height:21px");
+                div.setAttribute("id", divItems.childElementCount);
+                div.innerHTML = "<p style='display:inline-block;'>id</p><input id='tid' type='number' style='width:20%;' value='1' maxlength='5' step='1' min='1' max='99999'></input>"+
+                                "<p style='display:inline-block;'>时间</p><input id='time' type='number' style='width:20%'  value='1.0' maxlength='5' step='0.1' min='0'></input>"+
+                                "<p style='display:inline-block;'>旋转</p><input id='rot' type='number' style='width:20%'  value='0.0' maxlength='3' step='1' min='-179' max='180'></input>"+
+                                "<button id='remove' style='float:right;border-radius:2px;background-color:#ccc' onclick='RemoveFormParent(this.parentNode)'>-</button>";
+                divItems.appendChild(div);
+            }
+           
+            btnCls.onclick = function() {
+                game.RemoveAllBullets();
+                game.time = 0.0;
+                btnShow.click();
+                game.bulletBatchShooter = JSON.parse(cExport.innerHTML);
+            }
+        }
+        
+        Game.prototype.Init = function ()
+        {
+            this.SetupUI();
+        
+            var canvas = document.getElementById('GameCanvas');
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+            engine.InitCanvas(canvas);
+            
+            engine.onFrame = function(game) {
+                return function(dt) { 
+                    game.Frame(dt); 
+                }; 
+            }(this);
+            
+            this.sprite = new Sprite();
+            this.sprite.UseSpriteSheet("ship", shipSheet);
+            this.sprite.x = canvas.width / 2;
+            this.sprite.y = canvas.height / 2;
+            
+            this.bulletBatchs = [];
+            this.time = 0;
+            this.bulletBatchShooter = [];
+
+            
+            this.camera = new engine.core.Camera();
+            this.camera.x = canvas.width / 2;
+            this.camera.y = canvas.height / 2;
+          
+            var btnRm = document.getElementById('AddEditItem');
+            btnRm.click();
+            var btnCls = document.getElementById('ClearBullets');
+            btnCls.click();
+            
+            engine.Start();
+        }
+        
+        Game.prototype.Frame = function (dt)
+        {
+            this.Update(dt);
+            this.Draw();
+        }
+        
+        Game.prototype.Update = function (dt)
+        {
+            this.UpdateShooter(dt);
+            this.UpdateBullets(dt);
+        }
+        
+        Game.prototype.Draw = function ()
+        {
+            var ctx = engine.context;
+            ctx.save();
+            
+            ctx.fillStyle="black";
+            ctx.fillRect(0,0, ctx.canvas.width, ctx.canvas.height);
+            
+            // 使用相机
+            this.camera.Begin(ctx, ctx.canvas.width, ctx.canvas.height);
+    
+            this.sprite.Draw(ctx);
+            this.DrawBullets(ctx);
+            
+            // 结束相机
+            this.camera.End(ctx);
+            
+            ctx.restore();
+        }
+        
+        Game.prototype.UpdateShooter = function(dt)
+        {
+            for (var i = 0; i < this.bulletBatchShooter.length; ++i){
+                var shooter = this.bulletBatchShooter[i];
+                
+                // 刷新子弹
+                if ( this.time < shooter.time && this.time + dt > shooter.time) {
+                    var bb = new BulletBatch();
+                    bb.Init(0, shooter.id, bulletSheet, new Vec2(this.sprite.x, this.sprite.y+20), 0, shooter.rot);
+                    game.AddBulletBatch(bb);
+                }
+            }
+            this.time += dt;
+        }
+        
+        Game.prototype.AddBulletBatch = function(bulletBatch)
+        {
+            this.bulletBatchs.push(bulletBatch);
+            console.log(this.bulletBatchs.length);
+        }
+        
+        Game.prototype.RemoveBulletBatchById = function(bulletBatchId)
+        {
+            var idx = Util.FindIndex(this.bulletBatchs, bulletBatchId);
+            if (idx >= 0) {
+                this.bulletBatchs.splice(idx, 1);
+            }
+        }
+        
+        Game.prototype.RemoveAllBullets = function(bulletBatchId)
+        {
+            this.bulletBatchs = [];
+        }
+        
+        Game.prototype.UpdateBullets = function(dt)
+        {
+            var bb, inst, nx, ny;
+            for (var i = this.bulletBatchs.length - 1; i >= 0; --i) {
+                bb = this.bulletBatchs[i];
+                bb.duration += dt;
+                
+                for (var j = 0; j < bb.instances.length; ++j)
+                {
+                    inst = bb.instances[j];
+                    if (inst.state === 0)
+                        continue;
+                    
+                    nx = bb.position.x + inst.speed.x * bb.duration;
+                    ny = bb.position.y + inst.speed.y * bb.duration;
+                    if(nx < 0 || ny < 0 || nx > engine.canvas.width || ny > engine.canvas.height) {
+                        inst.state = 0;
+                    }
+                }
+                    
+                if (bb.AllInstanceIsDeath()) {
+                    this.bulletBatchs.splice(i, 1);
+                    //console.log("剩余子弹批", this.bulletBatchs.length);
+                }
+            }
+        }
+        
+        Game.prototype.DrawBullets = function(ctx)
+        {
+            for (var i = this.bulletBatchs.length - 1; i >= 0; --i) {
+                var bb = this.bulletBatchs[i];
+                bb.Draw(ctx);
+            }
+        }
+        
+        Game.prototype.IsVisible = function(x, y, width, height)
+        {
+            if (typeof width === 'undefined') width = 1;
+            if (typeof width === 'undefined') height = 1;
+            
+            var r1 = new engine.commom.Rect(0, 0, engine.canvas.width, engine.canvas.height);
+            var r2 = new engine.commom.Rect(0, 0, width, height);
+            r2.CenterPointAt(x, y);
+            return r1.IntersectRect(r2) !== null;
+        }
+        
+        var game = new Game();
+
+        function Start() {
+            game.Init();        
+        }
+    </script>
+</head>
+<body onload="Start()">
+    <div style="width:100%;height:100%;background-color:#999;">
+        <div id="workspace" style="width:90%;height:100%;margin:0 auto;">
+        <canvas id='GameCanvas' style="display:block;background-color:#fff;float:left;width:75%;height:100%;" oncontextmenu="return false"></canvas>
+        <div id="outline" style="float:left;width:25%;height:100%;margin:0 auto;background-color:#ccc;">
+            <div style="margin: 4px;">
+                <button id="ClearBullets" style="border-radius:4px;width:100%;padding:6px;font-size:18px;background-color:#ccc">重新开始</button>
+                
+<!--            <div style="border-color:#7c7cdc;border-width: 2px;border-style: solid; margin:2px; padding:1px;height:21px">
+                    <p style="display:inline-block;">id</p>
+                    <input type="number" style="width:20%;" value="1" maxlength="5"></input>
+                    <p style="display:inline-block;">时间</p>
+                    <input type="number" style="width:20%"  value="1.0" maxlength="5" step="0.1"></input>
+                    <button id="remove" style="float:right;border-radius:2px;background-color:#ccc">-</button>
+                </div> -->
+                <div id="EditItems">
+                </div>
+                <div style="border-color:#7c7cdc;border-width: 2px;border-style: solid; margin:2px; padding:1px;height:21px">
+                    <button id="AddEditItem" style="float:right;border-radius:2px;background-color:#ccc">+</button>
+                </div>
+                <div>
+                    <button id="ShowJson" style="border-radius:4px;width:100%;padding:6px;font-size:18px;background-color:#ccc">显示json↓</button>
+                    <p id="ExportJson" contenteditable="true" style="border-color:#7c7cdc;border-width: 2px;border-style: solid; margin:2px;height:300px;overflow: auto;"></p>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+</body>
+</html>
