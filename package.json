@@ -21,5 +21,9 @@
   "bugs": {
     "url": "https://github.com/Senecio/man2016/issues"
   },
-  "homepage": "https://github.com/Senecio/man2016#readme"
+  "homepage": "https://github.com/Senecio/man2016#readme",
+  "dependencies": {
+    "leancloud-realtime": "^3.3.1",
+    "leancloud-storage": "^1.5.3"
+  }
 }
