@@ -23,8 +23,8 @@
   },
   "homepage": "https://github.com/Senecio/man2016#readme",
   "dependencies": {
-    "leancloud-realtime": "^3.3.1",
-    "leancloud-storage": "^1.5.3"
+    "express": "4.12.3",
+    "leanengine": "^1.0.0-beta"
   },
   "engines": {
     "node": "4.x"
