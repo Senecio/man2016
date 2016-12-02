@@ -24,6 +24,7 @@
   "homepage": "https://github.com/Senecio/man2016#readme",
   "dependencies": {
     "express": "4.12.3",
+    "socket.io": "^1.4.8",
     "leanengine": "^1.0.0-beta"
   },
   "engines": {
