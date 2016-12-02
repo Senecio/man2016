@@ -1,0 +1,25 @@
+{
+  "name": "man2016",
+  "version": "1.0.0",
+  "description": "html game",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Senecio/man2016.git"
+  },
+  "keywords": [
+    "h5",
+    "game",
+    "online"
+  ],
+  "author": "lsh",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Senecio/man2016/issues"
+  },
+  "homepage": "https://github.com/Senecio/man2016#readme"
+}
