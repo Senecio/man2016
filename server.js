@@ -8,7 +8,7 @@ AV.init({
 });
 
 var app = express();
-app.use(AV.express());
+//app.use(AV.express());
 app.listen(process.env.LEANCLOUD_APP_PORT);
 
 app.get('/', function(req, response) {
