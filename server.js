@@ -11,7 +11,7 @@ var app = express();
 app.use(AV.express());
 app.listen(process.env.LEANCLOUD_APP_PORT);
 
-app.get('/', function(req, res) {
+app.get('/', function(req, response) {
   /*res.render('index', {title: 'Hello world'});*/
     response.writeHead(200, {"Content-Type": "text/plain"});  
     response.write("Hello World");  
