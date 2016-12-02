@@ -18,7 +18,7 @@ Net.prototype.Start = function()
 {
     var heartbeatTime = new Date().getTime();
     var heartbeatHandler = null;
-    var socket = io("http://man2016.duapp.com/");
+    var socket = io("http://man2016.leanapp.cn/");
     this.socket = socket;
     var net = this;
     
