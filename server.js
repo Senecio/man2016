@@ -13,7 +13,7 @@ app.use(AV.express());
 app.use(express.static(__dirname + "/client"));
 
 http.listen( process.env.LEANCLOUD_APP_PORT, function() {
-    console.log('[DEBUG] Listening on *:' + port);
+    console.log('[DEBUG] Listening on *:' + process.env.LEANCLOUD_APP_PORT);
 });
 
 //app.listen(process.env.LEANCLOUD_APP_PORT);
