@@ -210,7 +210,7 @@ Map.prototype.Update = function(dt)
         }
     }
     
-    
+    /*
     for (var i = 0; i < this.bulletBatchShooter.length; ++i){
         var shooter = this.bulletBatchShooter[i];
         // 刷新子弹A
@@ -222,7 +222,7 @@ Map.prototype.Update = function(dt)
             this.bulletBatchs.push(bb);
             this.BroadcastPlayers(bb, "bulletBatch");
         }
-    }
+    }*/
     
     //----------------------------测试-----------------------------
     for (var i = 0; i < this.bulletBatchShooter1.length; ++i){
