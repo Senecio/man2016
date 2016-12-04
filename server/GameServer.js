@@ -54,6 +54,10 @@ GameServer.prototype.NewClient = function(client)
     
     socket.on('enterGame', function (data) {
         
+        if (typeof client.player !== 'undefined') {
+            GameLog(socket.id + "repeat enterGame");
+            return;
+        }
         // check nickName is valid.
         var newPlayer = new Player();
         newPlayer.Init(socket.id, data.nickName, socket);

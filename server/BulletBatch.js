@@ -17,14 +17,41 @@ BulletBatch.prototype.Init = function(id, tid, position, rotation)
         this.position = position;
         this.rotation = rotation;
         this.instances = [];
-        if (entry.type === 'circular') {
-            var angle = 360 / entry.data.number;
-            var initDir = new Vec2(0, 1);
-            for(var a = 0; a < 360; a += angle) {
-                var speed = initDir.Rotation(a + rotation);
-                speed.MulSelf(entry.speed);
-                var instance = { 'state' : 1, 'speed' : speed };
+        
+        if (entry.type === 'circular') {            
+            if (entry.data.number === 1) {
+                var initDir = new Vec2(0, 1);
+                var speed = initDir.Rotation(rotation);
+                var instance = { 'state' : 1, 'speed' : speed, 'angle' : rotation };
                 this.instances.push(instance);
+            }else if (entry.data.number > 1) {
+                var stepAngle = 360 / entry.data.number;
+                var initDir = new Vec2(0, 1);
+                for(var a = 0; a < 359; a += stepAngle) {
+                    var speed = initDir.Rotation(a + rotation);
+                    speed.MulSelf(entry.speed);
+                    var instance = { 'state' : 1, 'speed' : speed, 'angle' : a + rotation };
+                    this.instances.push(instance);
+                }
+            }
+        }else if (entry.type === 'fan') {
+            var dataAngle = entry.data.angle;
+            if (entry.data.number === 1) {
+                var initDir = new Vec2(0, 1);
+                var speed = initDir.Rotation(rotation);
+                speed.MulSelf(entry.speed);
+                var instance = { 'state' : 1, 'speed' : speed, 'angle' : rotation };
+                this.instances.push(instance);
+            }else if(entry.data.number > 1) {
+                var stepAngle = dataAngle / (entry.data.number - 1);
+                var halfAngle = dataAngle / 2;
+                var initDir = new Vec2(0, 1);
+                for(var a = -halfAngle; a <= (halfAngle + 0.001); a += stepAngle) {
+                    var speed = initDir.Rotation(a + rotation);
+                    speed.MulSelf(entry.speed);
+                    var instance = { 'state' : 1, 'speed' : speed, 'angle' : a + rotation };
+                    this.instances.push(instance);
+                }
             }
         }
     }

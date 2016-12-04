@@ -4,6 +4,11 @@ if(typeof module !== 'undefined')
 var Player = require("./Player.js");
 var Quadtree = require("./Quadtree.js").Quadtree;
 var BulletBatch = require("./BulletBatch.js");
+var bulletBatchShooter = require("./bulletBatchShooter.js");
+
+var ModeTimeTable = [GC.EasyShootModeTime, GC.NormalShootModeTime, GC.HardShootModeTime];
+var ModeKey = ['easy', 'normal', 'hard'];
+
 
 var GetNextType = function() {
     var id = -1;
@@ -23,39 +28,12 @@ function Map()
     this.notifyCount = 0;
     this.notifyDelay = 0;
     this.quadtree = new Quadtree({x:0,y:0,width:this.width,height:this.height});
+    this.bulletBatchShooter = new bulletBatchShooter();
+    this.shootMode = 0;
+    this.modeTime = 0;
     this.bulletBatchs = []; // 子弹列表
     this.BatchAInterval = 1.0;
     this.BatchATime = 0;
-    
-    this.bulletBatchShooter = [ 
-                                { id : 1, interval : 6.0, rot : 0, time :  0 },
-                                { id : 1, interval : 6.0, rot : 5, time : -0.5 },
-                                { id : 1, interval : 6.0, rot : 15, time : -2.5 },
-                            ];
-
-    //----------------------------测试-----------------------------
-    this.bulletBatchShooter1 = [ 
-                                { id : 1, interval : 6.0, rot : 0, time :  0 },
-                                { id : 1, interval : 6.0, rot : 5, time : -0.5 },
-                                { id : 1, interval : 6.0, rot : 15, time : -2.5 },
-                            ];
-    this.bulletBatchShooter2 = [ 
-                                { id : 1, interval : 6.0, rot : 0, time :  0 },
-                                { id : 1, interval : 6.0, rot : 5, time : -0.5 },
-                                { id : 1, interval : 6.0, rot : 15, time : -2.5 },
-                            ];
-    this.bulletBatchShooter3 = [ 
-                                { id : 1, interval : 6.0, rot : 0, time :  0 },
-                                { id : 1, interval : 6.0, rot : 5, time : -0.5 },
-                                { id : 1, interval : 6.0, rot : 15, time : -2.5 },
-                            ];
-    this.bulletBatchShooter4 = [ 
-                                { id : 1, interval : 6.0, rot : 0, time :  0 },
-                                { id : 1, interval : 6.0, rot : 5, time : -0.5 },
-                                { id : 1, interval : 6.0, rot : 15, time : -2.5 },
-                            ];
-    //----------------------------测试-----------------------------
-    
     this.BatchId = 0;
 }
 
@@ -210,69 +188,60 @@ Map.prototype.Update = function(dt)
         }
     }
     
-    /*
-    for (var i = 0; i < this.bulletBatchShooter.length; ++i){
-        var shooter = this.bulletBatchShooter[i];
-        // 刷新子弹A
-        shooter.time += dt;
-        if ( shooter.time > shooter.interval) {
-            shooter.time -= shooter.interval;
-            var bb = new BulletBatch();
-            bb.Init(this.GetBulletBatchId(), shooter.id, new Vec2(this.width / 2, this.height / 2), shooter.rot);
-            this.bulletBatchs.push(bb);
-            this.BroadcastPlayers(bb, "bulletBatch");
-        }
-    }*/
+    this.duration += dt;
+    this.modeTime += dt;
     
-    //----------------------------测试-----------------------------
-    for (var i = 0; i < this.bulletBatchShooter1.length; ++i){
-        var shooter = this.bulletBatchShooter1[i];
-        shooter.time += dt;
-        if ( shooter.time > shooter.interval) {
-            shooter.time -= shooter.interval;
-            var bb = new BulletBatch();
-            bb.Init(this.GetBulletBatchId(), shooter.id, new Vec2(50, 50), shooter.rot);
-            this.bulletBatchs.push(bb);
-            this.BroadcastPlayers(bb, "bulletBatch");
+    if (this.modeTime > ModeTimeTable[this.shootMode]) {
+        this.modeTime = -GC.NextModeTime;
+        if(++this.shootMode > 2){
+            this.shootMode = 0;
         }
     }
     
-    for (var i = 0; i < this.bulletBatchShooter2.length; ++i){
-        var shooter = this.bulletBatchShooter2[i];
-        shooter.time += dt;
-        if ( shooter.time > shooter.interval) {
-            shooter.time -= shooter.interval;
-            var bb = new BulletBatch();
-            bb.Init(this.GetBulletBatchId(), shooter.id, new Vec2(this.width - 50, 50), shooter.rot);
-            this.bulletBatchs.push(bb);
-            this.BroadcastPlayers(bb, "bulletBatch");
+    if (this.modeTime > 0) {
+        var shooter;
+        var booster;
+        var modeKey = ModeKey[this.shootMode];
+        for (var i = 0; i < this.bulletBatchShooter.length; ++i){
+            var configer = this.bulletBatchShooter[i];
+            if (typeof configer.time === 'undefined') {
+                configer.time = 0;
+            }
+            
+            if (configer[modeKey].length > 0)
+            {
+                if (configer[modeKey].length > 1) {
+                    if (typeof configer.idx === 'undefined') {
+                        configer.idx = Math.floor(Math.random() * (configer[modeKey].length - 0.01));
+                    }
+                    booster = configer[modeKey][configer.idx];
+                }else {
+                    booster = configer[modeKey][0];
+                }
+                
+                for (var j = 0; j < booster.length; ++j){
+                    shooter = booster[j];
+                    // 刷新子弹
+                    if ( configer.time < shooter.time && configer.time + dt > shooter.time) {
+                        var bb = new BulletBatch();
+                        bb.Init(this.GetBulletBatchId(), shooter.id, new Vec2(configer.x, configer.y), shooter.rot + configer.dir);
+                        this.bulletBatchs.push(bb);
+                        this.BroadcastPlayers(bb, "bulletBatch");
+                        
+                        if ( j === (booster.length - 1) ) {
+                            configer.time = -5; // 每个节奏结束3秒换节奏cd
+                            if (configer[modeKey].length > 1) {
+                                configer.idx =  Math.floor(Math.random() * (configer[modeKey].length - 0.01));
+                            }
+                        }
+                    }
+                }
+                
+                configer.time += dt;
+            }
         }
     }
     
-    for (var i = 0; i < this.bulletBatchShooter3.length; ++i){
-        var shooter = this.bulletBatchShooter3[i];
-        shooter.time += dt;
-        if ( shooter.time > shooter.interval) {
-            shooter.time -= shooter.interval;
-            var bb = new BulletBatch();
-            bb.Init(this.GetBulletBatchId(), shooter.id, new Vec2(50, this.height - 50), shooter.rot);
-            this.bulletBatchs.push(bb);
-            this.BroadcastPlayers(bb, "bulletBatch");
-        }
-    }
-    
-    for (var i = 0; i < this.bulletBatchShooter4.length; ++i){
-        var shooter = this.bulletBatchShooter4[i];
-        shooter.time += dt;
-        if ( shooter.time > shooter.interval) {
-            shooter.time -= shooter.interval;
-            var bb = new BulletBatch();
-            bb.Init(this.GetBulletBatchId(), shooter.id, new Vec2(this.width - 50, this.height - 50), shooter.rot);
-            this.bulletBatchs.push(bb);
-            this.BroadcastPlayers(bb, "bulletBatch");
-        }
-    }
-    //----------------------------测试-----------------------------
     
     // 子弹更新
     var bb, inst, nx, ny, position = new Vec2(0, 0);

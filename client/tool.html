@@ -64,6 +64,14 @@
             }
         }
         
+        function IsArray(obj) {   
+                return Object.prototype.toString.call(obj) === '[object Array]';    
+        }
+        
+        function IsNumber(obj) {
+            return typeof obj === 'number' && !isNaN(obj)
+        }
+        
         function Game() {
 
         }
@@ -72,11 +80,12 @@
             var game = this;
             
             var btnShow = document.getElementById('ShowJson');
+            var btnParse = document.getElementById('ParseJson');
             var cExport = document.getElementById('ExportJson'); 
             var divItems = document.getElementById('EditItems');
             var btnRm = document.getElementById('AddEditItem');
             var btnCls = document.getElementById('ClearBullets');
-            
+
             btnShow.onclick = function() {
                 var bulletBatchShooter = [];
                 var childs = divItems.children;
@@ -109,6 +118,63 @@
                 }
             }
             
+             
+            
+            btnParse.onclick = function() {
+                if(cExport.innerHTML === "") {
+                    alert("空的json字符串.");
+                    return;
+                }
+                try {
+                    if (cExport.innerHTML.charAt(cExport.innerHTML.length - 1) === ',') {
+                        cExport.innerHTML = cExport.innerHTML.substr(0, cExport.innerHTML.length - 1);
+                    }
+                    var array = JSON.parse(cExport.innerHTML);
+                    if (!IsArray(array)) {
+                        alert("错误的json字符串");
+                        return;
+                    }
+                    
+                    for (var i = 0; i < array.length; ++i) {
+                        var shooter = array[i];
+                        if (typeof shooter.id === 'undefined' || !IsNumber(shooter.id)) {
+                            alert("错误的json字符串");
+                            return;
+                        }
+                        
+                        if (typeof shooter.time === 'undefined' || !IsNumber(shooter.time)) {
+                            alert("错误的json字符串");
+                            return;
+                        }
+                        
+                        if (typeof shooter.rot === 'undefined' || !IsNumber(shooter.rot)) {
+                            alert("错误的json字符串");
+                            return;
+                        }
+                    }
+                    
+                    while(divItems.hasChildNodes()) //当div下还存在子节点时 循环继续
+                    {
+                        divItems.removeChild(divItems.firstChild);
+                    }
+                    for (var i = 0; i < array.length; ++i) {
+                        var shooter = array[i];
+                        var div = document.createElement("div");
+                        div.setAttribute("style","border-color:#888;border-width: 2px;border-style: solid; margin:2px;padding:1px;height:21px");
+                        div.setAttribute("id", divItems.childElementCount);
+                        div.innerHTML = "<p style='display:inline-block;'>id</p><input id='tid' type='number' style='width:20%;' value='" +shooter.id+ "' maxlength='5' step='1' min='1' max='99999'></input>"+
+                                "<p style='display:inline-block;'>时间</p><input id='time' type='number' style='width:20%'  value='" +shooter.time+ "' maxlength='5' step='0.1' min='0'></input>"+
+                                "<p style='display:inline-block;'>旋转</p><input id='rot' type='number' style='width:20%'  value='" +shooter.rot+ "' maxlength='3' step='1' min='-179' max='180'></input>"+
+                                "<button id='remove' style='float:right;border-radius:2px;background-color:#ccc' onclick='RemoveFormParent(this.parentNode)'>-</button>";
+                        divItems.appendChild(div);
+                    }
+                    btnCls.onclick();
+                    
+                }catch (e) {
+                    alert("错误的json字符串[" +e+"]");
+                    return;
+                }
+            }
 
             btnRm.onclick = function () {
                 var div = document.createElement("div");
@@ -308,6 +374,7 @@
                 <div>
                     <button id="ShowJson" style="border-radius:4px;width:100%;padding:6px;font-size:18px;background-color:#ccc">显示json↓</button>
                     <p id="ExportJson" contenteditable="true" style="border-color:#7c7cdc;border-width: 2px;border-style: solid; margin:2px;height:300px;overflow: auto;"></p>
+                    <button id="ParseJson" style="border-radius:4px;width:100%;padding:6px;font-size:18px;background-color:#ccc">解析json↑</button>
                 </div>
             </div>
         </div>

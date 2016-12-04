@@ -13,8 +13,10 @@
         
         // 子弹表
         'Bullet' : [
-            { 'id' : 1,     'type' : 'circular',        'speed' : 80,  'size' : 2,  'data' : { 'number' : 20 } },       // 圆形
-            { 'id' : 2,     'type' : 'fan',             'speed' : 80,  'size' : 2,  'data' : { 'angle' : 30, 'number' : 11 } }, // 扇形
+            { 'id' : 1,     'type' : 'circular',        'speed' : 80,  'size' : 2,  'data' : { 'number' : 10 } },       // 圆形
+            { 'id' : 2,     'type' : 'circular',        'speed' : 80,  'size' : 2,  'data' : { 'number' : 20 } },       // 圆形
+            { 'id' : 3,     'type' : 'fan',             'speed' : 80,  'size' : 2,  'data' : { 'angle' : 30, 'number' : 5 } }, // 扇形
+            { 'id' : 4,     'type' : 'fan',             'speed' : 80,  'size' : 2,  'data' : { 'angle' : 30, 'number' : 9 } }, // 扇形
         ],
         
         GetEntry : function(tableName, id)
