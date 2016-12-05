@@ -213,7 +213,7 @@ Game.prototype.Init = function(canvas, net)
     net.socket.emit('enterGame', { nickName : nickNameInput.value });
     
     if(IsMobile()) {
-        engine.showStats = true;
+        //engine.showStats = true;
     }
     
     this.camera = new engine.core.Camera();
