@@ -9,6 +9,7 @@ function UIJoystick()
     this.touched = false;
     this.touchedKey = null;
     this.direction = "none";
+    this.dirVector = new Vec2(0,0);
     this.dirNumber = 16;
 }
 
@@ -64,6 +65,7 @@ UIJoystick.prototype.Update = function(dt)
                         this.spriteBtn.y = this.spriteBg.y + dir.y * 40;
                     }
                     
+                    this.dirVector = dir;
                     if (length < 5) {
                         this.direction = "none";
                     }
@@ -165,6 +167,14 @@ UIJoystick.prototype.Update = function(dt)
 UIJoystick.prototype.GetDirection = function()
 {
     return this.direction;
+}
+
+UIJoystick.prototype.GetDirVector = function()
+{
+    if (this.touched === true) {
+        return new Vec2(this.dirVector.x, -this.dirVector.y);
+    }
+    return new Vec2(0, 0);
 }
 
 UIJoystick.prototype.Draw = function(ctx)

@@ -161,6 +161,13 @@ Util.RandomRange = function(a, b)
     return Math.floor(Math.random() * (b - a + 1)) + a;
 }
 
+Util.Degrees=function(radians) {
+    return radians*(180/Math.PI);
+};
+
+Util.Radians=function(degrees) {
+    return degrees/(180/Math.PI);
+};
 
 /**
  * Module exports.
@@ -608,11 +615,13 @@ engine.InitCanvas = function(canvas, fullCanvasWithWindow)
         
         document.addEventListener(screenfull.raw.fullscreenchange, function() { 
             window.setTimeout(function() {
-                if (!screenfull.isFullscreen && engine.fullCanvasWithWindow) {
-                    FillCanvasToFullWindow(canvas);
-                }
-                else {
-                    FullScreenChangeCanvas(canvas);
+                if (engine.fullCanvasWithWindow) {
+                    if (!screenfull.isFullscreen) {
+                        FillCanvasToFullWindow(canvas);
+                    }
+                    else {
+                        FullScreenChangeCanvas(canvas);
+                    }
                 }
                 
                 CheckBackgroundImage(); 
@@ -747,7 +756,7 @@ t/(a-r)),u=Math.min(u,d),v=Math.max(v,d),A.textContent=d+" FPS ("+u+"-"+v+")",p(
         requestAnimFrame(Step);
     }());
 }
-        
+
 module.exports = engine;
 },{"../common/CommonExport.js":2,"./core/Camera.js":9,"./core/Input.js":10,"./core/Resource.js":11,"./core/Sprite.js":12,"./core/SpriteAnimation.js":13,"./core/SpriteSheet.js":14}],9:[function(require,module,exports){
 /**
@@ -843,6 +852,7 @@ Camera.prototype.EnableContext2DAcceptWorldCoordinates = function(context)
         }
     }
     
+    // 覆盖 fillRect
     context.CanvasRenderingContext2D_prototype_fillRect = CanvasRenderingContext2D.prototype.fillRect;
     context.fillRect = function() {
         var x    = arguments[0];
@@ -850,6 +860,34 @@ Camera.prototype.EnableContext2DAcceptWorldCoordinates = function(context)
         var width = arguments[2];
         var height = -arguments[3];
         context.CanvasRenderingContext2D_prototype_fillRect.bind(this)(x, y, width, height);
+    }
+    
+    // 覆盖moveTo
+    context.CanvasRenderingContext2D_prototype_moveTo = CanvasRenderingContext2D.prototype.moveTo;
+    context.moveTo = function() {
+        var x    = arguments[0];
+        var y    = -arguments[1];
+        context.CanvasRenderingContext2D_prototype_moveTo.bind(this)(x, y);
+    }
+    
+    // 覆盖lineTo
+    context.CanvasRenderingContext2D_prototype_lineTo = CanvasRenderingContext2D.prototype.lineTo;
+    context.lineTo = function() {
+        var x    = arguments[0];
+        var y    = -arguments[1];
+        context.CanvasRenderingContext2D_prototype_lineTo.bind(this)(x, y);
+    }
+    
+    // 覆盖arc
+    context.CanvasRenderingContext2D_prototype_arc = CanvasRenderingContext2D.prototype.arc;
+    context.arc = function() {
+        var x    = arguments[0];
+        var y    = -arguments[1];
+        var radius = arguments[2];
+        var startAngle = arguments[3];
+        var endAngle = arguments[4];
+        var counterclockwise = arguments[5];
+        context.CanvasRenderingContext2D_prototype_arc.bind(this)(x, y, radius, startAngle, endAngle, counterclockwise);
     }
 }
 
@@ -860,6 +898,9 @@ Camera.prototype.DisableContext2DAcceptWorldCoordinates = function(context)
     if ( context.CanvasRenderingContext2D_prototype_fillText ) { context.fillText = context.CanvasRenderingContext2D_prototype_fillText;    context.CanvasRenderingContext2D_prototype_fillText = null; };
     if ( context.CanvasRenderingContext2D_prototype_strokeText) { context.strokeText = context.CanvasRenderingContext2D_prototype_strokeText;    context.CanvasRenderingContext2D_prototype_strokeText = null; };
     if ( context.CanvasRenderingContext2D_prototype_fillRect ) { context.fillRect = context.CanvasRenderingContext2D_prototype_fillRect;    context.CanvasRenderingContext2D_prototype_fillRect = null; };
+    if ( context.CanvasRenderingContext2D_prototype_moveTo ) { context.moveTo = context.CanvasRenderingContext2D_prototype_moveTo;    context.CanvasRenderingContext2D_prototype_moveTo = null; };
+    if ( context.CanvasRenderingContext2D_prototype_lineTo ) { context.lineTo = context.CanvasRenderingContext2D_prototype_lineTo;    context.CanvasRenderingContext2D_prototype_lineTo = null; };
+    if ( context.CanvasRenderingContext2D_prototype_arc ) { context.arc = context.CanvasRenderingContext2D_prototype_arc;    context.CanvasRenderingContext2D_prototype_arc = null; };
 }
 
 Camera.prototype.Begin = function(context, canvasWidht, canvasHeight)
@@ -1142,11 +1183,26 @@ Resource.prototype.GetSound = function(url)
         var snd = new Audio();
         snd.src = url;
         snd.loop = false;
+        snd.onloadeddata = function() {
+            snd.loadComplete = true;
+        }
         this._sounds[url] = snd;
         return snd;
     }
 }
 
+Resource.prototype.PrepareSound = function()
+{
+    for (var key in this._sounds) {
+        var snd = this._sounds[key];
+        if (snd.loadComplete === true && snd.prepareComplete !== true) {
+            snd.play();
+            snd.pause();
+            snd.prepareComplete = true;
+            engine.commom.Logger(snd.src + "加载完成!")
+        }
+    }
+}
 },{}],12:[function(require,module,exports){
 
 /**

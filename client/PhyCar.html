@@ -1,0 +1,482 @@
+<!doctype html>
+<html >
+<head>
+    <meta charset="UTF-8">
+    <title>碰碰车</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" >
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="fullscreen" content="true"/>
+    <meta name="screen-orientation" content="portrait"/>    
+    <meta name="x5-fullscreen" content="true"/>
+    <meta name="360-fullscreen" content="true"/>
+    <meta name="browsermode" content="application">
+    <title>工具</title>
+    <style>
+        /*新增加此条样式*/
+        * {
+            margin:0px;
+            font-family: monospace;
+        }
+        html,body{
+            width:100%;
+            height:100%;
+        }
+        
+        body{
+            background-image: url(images/banner.jpg);
+        }
+    </style>
+    <script src="./socket.io/socket.io.js"></script>
+    <script src="./js/libs/screenfull.min.js"></script>
+    <script src="./js/libs/Box2dWeb-2.1.a.3.js"></script>
+    <script src="./js/Engine.js"></script>
+    <script src="./js/UIJoystick.js"></script>
+    <script>
+    
+        var b2Vec2 = Box2D.Common.Math.b2Vec2,
+            b2Math = Box2D.Common.Math.b2Math,
+            b2BodyDef = Box2D.Dynamics.b2BodyDef,
+            b2Body = Box2D.Dynamics.b2Body,
+            b2FixtureDef = Box2D.Dynamics.b2FixtureDef,
+            b2Fixture = Box2D.Dynamics.b2Fixture,
+            b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef,
+            b2PrismaticJointDef = Box2D.Dynamics.Joints.b2PrismaticJointDef,
+            b2World = Box2D.Dynamics.b2World,
+            b2MassData = Box2D.Collision.Shapes.b2MassData,
+            b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape,
+            b2CircleShape = Box2D.Collision.Shapes.b2CircleShape, 
+            b2DebugDraw = Box2D.Dynamics.b2DebugDraw;
+        
+        // 为简单使用库,声明常用全局函数
+        Vec2 = engine.commom.Vec2;
+        Util = engine.commom.Util;
+        Sprite = engine.core.Sprite;
+        Input = engine.core.Input;
+        Resource = engine.core.Resource;
+        GameLog = engine.commom.Logger;
+
+        var shipSprites = Resource.GetImage("./images/sprites.png");
+
+        var shipSheet = new engine.core.SpriteSheet();
+        shipSheet.SetImage(shipSprites);
+        shipSheet.Add("ship", 0, 0, 38, 42);
+        shipSheet.Add("enemy_purple", 37, 0, 42, 43);
+        shipSheet.Add("enemy_bee", 79, 0, 36, 43);
+        shipSheet.Add("enemy_ship", 116, 0, 41, 43);
+        shipSheet.Add("enemy_circle", 158, 0, 32, 33);
+        shipSheet.Add("explosion1", 0, 64, 64, 64);
+        shipSheet.Add("explosion2", 64, 64, 64, 64);
+        shipSheet.Add("explosion3", 128, 64, 64, 64);
+        shipSheet.Add("explosion4", 192, 64, 64, 64);
+        shipSheet.Add("explosion5", 256, 64, 64, 64);
+        shipSheet.Add("explosion6", 320, 64, 64, 64);
+        shipSheet.Add("explosion7", 384, 64, 64, 64);
+        shipSheet.Add("explosion8", 448, 64, 64, 64);
+        shipSheet.Add("explosion9", 512, 64, 64, 64);
+        shipSheet.Add("explosion10", 576, 64, 64, 64);
+        shipSheet.Add("explosion11", 640, 64, 64, 64);
+        shipSheet.Add("explosion12", 704, 64, 64, 64);
+        
+        var carSprites = Resource.GetImage("./images/pengpeng-car.png");
+        
+        //var snd = engine.core.Resource.GetSound("http://tts.baidu.com/text2audio?lan=zh&ie=UTF-8&text=是男人就坚持二十秒");
+        //snd.oncanplay = function(){
+        //    snd.play(); // 必须用户触发.  可以在onclick事件触发时.播放所有预加载的sound.play()后马上 pause().只要sound执行成功过play.以后就可以javascript播放.
+        //}
+        
+        //https://openapi.baidu.com/oauth/2.0/token?grant_type=client_credentials&client_id=OnWekQOfatFFEbOM8dq5mnYP&client_secret=7a4d2cd6f6ccce45f1869a1f5277a5b1
+        //http://tsn.baidu.com/text2audio?tex=我们自己手动控制旋转角度&lan=zh&cuid=html5game&ctp=1&per=1&tok=24.56e93a38615f0e6b5119a764d5017fc8.2592000.1483898637.282335-9020713
+        
+        function Wheel(world, car, x, y, revolving, angle)
+        {
+            this.angle = angle;
+            this.position = new b2Vec2(x*game.physics.gameScale, y*game.physics.gameScale);
+            var fixDef = new b2FixtureDef;
+            fixDef.density=1*game.physics.gameScale;
+            fixDef.isSensor=true; //轮子不参与碰撞
+            fixDef.shape = new b2PolygonShape;
+            fixDef.shape.SetAsBox(
+                4*game.physics.gameScale, //half width
+                8*game.physics.gameScale  //half height
+            );
+            
+            var bodyDef = new b2BodyDef;
+            bodyDef.type = b2Body.b2_dynamicBody;
+            bodyDef.position.x = car.position.x + this.position.x;
+            bodyDef.position.y = car.position.y + this.position.y;
+            var body = world.CreateBody(bodyDef);
+            body.CreateFixture(fixDef);
+            this.body = body;
+            this.car = car;
+            
+            var jointdef;
+            if (revolving) {
+                jointdef= new b2RevoluteJointDef();
+                jointdef.Initialize(car.body, this.body, this.body.GetWorldCenter());
+                jointdef.enableMotor = false; //我们自己手动控制旋转角度
+                world.CreateJoint(jointdef);
+            }else {
+                jointdef= new b2PrismaticJointDef();
+                jointdef.Initialize(car.body, this.body, this.body.GetWorldCenter(), new b2Vec2(0, 1));
+                jointdef.enableLimit = true;  //连接点不能移动
+                jointdef.lowerTranslation=jointdef.upperTranslation=0;
+            }
+            world.CreateJoint(jointdef);
+            
+            //--------------------------------------------------------------------
+            Wheel.prototype.getLocalVelocity=function(){
+                var res = this.car.body.GetLocalVector(this.car.body.GetLinearVelocityFromLocalPoint(this.position));
+                return res;
+            };
+
+            this.getDirectionVector=function(){
+                var x, y;
+                if (this.getLocalVelocity().y > 0){
+                    x = 0, y = 1;
+                }else{
+                    x = 0, y =-1;
+                }
+                
+                var angle = this.body.GetAngle();
+                return new b2Vec2(x*Math.cos(angle)-y*Math.sin(angle),
+                                  x*Math.sin(angle)+y*Math.cos(angle));
+            };
+
+
+            this.GetKillVelocityVector=function()
+            {
+                var velocity = this.body.GetLinearVelocity();
+                var sideways_axis = this.getDirectionVector();
+                var dotprod = b2Math.Dot(velocity, sideways_axis);
+                return new b2Vec2(sideways_axis.x * dotprod, sideways_axis.y * dotprod);
+    
+            };
+            
+            
+            this.KillSidewaysVelocity = function()
+            {
+                var kv=this.GetKillVelocityVector();
+                this.body.SetLinearVelocity(kv);
+            }
+        }
+        
+        function Car(world, x, y, controlKey)
+        {
+            this.position = new b2Vec2(x*game.physics.gameScale, y*game.physics.gameScale);
+            this.controlKey = controlKey;
+            this.enginePower = 50;
+            var fixDef = new b2FixtureDef;
+            fixDef.density=1*game.physics.gameScale;
+            fixDef.restitution=0.5;
+            fixDef.shape = new b2PolygonShape;
+            fixDef.shape.SetAsBox(
+                15*game.physics.gameScale, //half width
+                30*game.physics.gameScale //half height
+            );
+            
+            var bodyDef = new b2BodyDef;
+            bodyDef.type = b2Body.b2_dynamicBody;
+            bodyDef.linearDamping=0.5;
+            bodyDef.angularDamping=0.5;
+            bodyDef.position.x = this.position.x;
+            bodyDef.position.y = this.position.y;
+            var body = world.CreateBody(bodyDef);
+            body.CreateFixture(fixDef);
+            this.body = body;
+            this.sprite = new Sprite();
+            this.sprite.image = carSprites;
+            this.sprite.scaleX = this.sprite.scaleY = 0.4;
+            
+            
+            var pos = this.body.GetWorldPoint(new b2Vec2(0,0));
+            this.frontWheel = new Wheel(world, this, 0, 15, true, 0);
+            
+            var pos = this.body.GetWorldPoint(new b2Vec2(0,0));
+            this.backWheel = new Wheel(world, this, 0, -15, false, 0);
+            
+            this.maxTrunAngle = 41.5;
+            this.turnDir = 0;
+            
+            //--------------------------------------------------------------------
+            this.Update = function(dt) {
+            
+                if(Input.KeyboardIsDown(this.controlKey['up']) || Input.KeyboardIsDown(this.controlKey['down'])) {
+                    var isUp = Input.KeyboardIsDown(this.controlKey['up']);
+                    
+                    //var forword = this.car.frontWheel.body.GetWorldVector( new b2Vec2(0,1) );
+                    //forword.x *= (this.enginePower * (isUp ? 1 : -1));
+                    //forword.y *= (this.enginePower * (isUp ? 1 : -1));
+                    //this.car.frontWheel.body.ApplyForce(forword, this.car.frontWheel.body.GetWorldCenter());
+                
+                    var forword = this.body.GetWorldVector( new b2Vec2(0,1) );
+                    forword.x *= (this.enginePower * (isUp ? 1 : -1));
+                    forword.y *= (this.enginePower * (isUp ? 1 : -1));
+                    this.body.ApplyForce(forword, this.body.GetWorldCenter());
+                }
+
+                /*if (Input.KeyboardIsDown(this.controlKey['left'])) {
+                    this.Turn(-1);
+                }
+                else if (Input.KeyboardIsDown(this.controlKey['right'])) {
+                    this.Turn(1);
+                }
+                else{
+                    this.Turn(0);
+                }*/
+            
+                this.frontWheel.KillSidewaysVelocity();
+                this.backWheel.KillSidewaysVelocity();
+                
+                var wheelAngleSpeed = (this.maxTrunAngle/0.25) * dt;
+                if (this.turnDir != 0) {
+                    if (this.turnDir === -1) {
+                        if (this.maxTrunAngle > this.frontWheel.angle){
+                            this.frontWheel.angle = Math.min(this.maxTrunAngle, this.frontWheel.angle + wheelAngleSpeed);
+                        }
+                    } else {
+                    if (-this.maxTrunAngle < this.frontWheel.angle){
+                            this.frontWheel.angle = Math.max(-this.maxTrunAngle, this.frontWheel.angle - wheelAngleSpeed);
+                        }
+                    }
+                }else {
+                    if (this.frontWheel.angle > 0.1) {
+                        this.frontWheel.angle = Math.max(0, this.frontWheel.angle - wheelAngleSpeed*2);
+                    }else if(this.frontWheel.angle < -0.1){
+                        this.frontWheel.angle = Math.min(0, this.frontWheel.angle + wheelAngleSpeed*2);
+                    }
+                }
+                
+                this.frontWheel.body.SetAngle(this.GetAngle() + Util.Radians(this.frontWheel.angle));
+
+            },
+            
+            // -1 turn left, 0, keep direction, 1 turn right
+            this.Turn = function(dir) {
+                this.turnDir = dir;
+            },
+            
+            this.Driving = function() {
+            
+            },
+            
+            this.Stop = function() {
+            
+            
+            },
+            
+            this.GetAngle = function() {
+                return this.body.GetAngle();
+            },
+            
+            this.GetWheelAngle = function() {
+            
+            },
+            
+            this.GetPosition = function() {
+                var pos = this.body.GetPosition();
+                return new b2Vec2(pos.x/game.physics.gameScale, pos.y/game.physics.gameScale);
+            }
+            
+            this.Draw = function(ctx) {
+                var pos = this.GetPosition();
+                this.sprite.x = pos.x;
+                this.sprite.y = pos.y;
+                this.sprite.rotation = -Util.Degrees(this.GetAngle());
+                this.sprite.Draw(ctx);
+            },
+            this.GetForword = function() {
+                var forword = this.body.GetWorldVector( new b2Vec2(0,1) );
+                return forword;
+            }
+        }
+        
+        
+        function RemoveFormParent(element) {
+            var parentElement = element.parentNode;
+                if(parentElement){
+                parentElement.removeChild(element);
+            }
+        }
+        
+        function IsArray(obj) {   
+                return Object.prototype.toString.call(obj) === '[object Array]';    
+        }
+        
+        function IsNumber(obj) {
+            return typeof obj === 'number' && !isNaN(obj)
+        }
+        
+        function Game() {
+
+        }
+       
+        Game.prototype.Init = function ()
+        {
+            GameLog.socket = io('http://192.168.1.222:38086');
+            
+            var canvas = document.getElementById('GameCanvas');
+            engine.InitCanvas(canvas, true);
+            
+            engine.showStats = true;
+            
+            engine.onFrame = function(game) {
+                return function(dt) { 
+                    game.Frame(dt); 
+                }; 
+            }(this);
+            
+            this.physics = {};
+            this.physics.world = new b2World(
+                new b2Vec2(0, 0),    //gravity
+                true                 //allow sleep
+            );
+            this.physics.gameScale = (1 / 10);
+            
+            function CreataStaticBox(world,w,h,x,y) {
+                var fixDef = new b2FixtureDef;
+                fixDef.restitution = 0.0;
+                fixDef.shape = new b2PolygonShape;
+                fixDef.shape.SetAsBox(w/2*game.physics.gameScale, h/2*game.physics.gameScale);
+                
+                var bodyDef = new b2BodyDef;
+                bodyDef.type = b2Body.b2_staticBody; //默认是静态的
+                bodyDef.position.x = x * game.physics.gameScale;
+                bodyDef.position.y = y * game.physics.gameScale;
+                world.CreateBody(bodyDef).CreateFixture(fixDef);
+            }
+            
+            // 创建包围墙
+            CreataStaticBox(this.physics.world, engine.designCanvasWidth, 10, engine.designCanvasWidth/2, 5);
+            CreataStaticBox(this.physics.world, 10, engine.designCanvasHeight, 5, engine.designCanvasHeight/2);
+            CreataStaticBox(this.physics.world, engine.designCanvasWidth, 10, engine.designCanvasWidth/2, engine.designCanvasHeight-5);
+            CreataStaticBox(this.physics.world, 10, engine.designCanvasHeight, engine.designCanvasWidth-5, engine.designCanvasHeight/2);
+            
+            this.car = new Car(this.physics.world, 100 + (engine.designCanvasWidth - 200) * Math.random(), engine.designCanvasHeight - 200, { up:'up', down:'down', left:'left', right:'right'});
+            this.car2 = new Car(this.physics.world, 100 + (engine.designCanvasWidth - 200) * Math.random(), engine.designCanvasHeight - 200, { up:'w', down:'s', left:'a', right:'d'});
+            
+            //setup debug draw
+            var debugDraw = new b2DebugDraw();
+            debugDraw.SetSprite(engine.context);
+            debugDraw.SetDrawScale((1/game.physics.gameScale));
+            debugDraw.SetFillAlpha(0.1);
+            debugDraw.SetLineThickness(1.0);
+            debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit | b2DebugDraw.e_centerOfMassBit);
+            this.physics.world.SetDebugDraw(debugDraw);
+            
+            this.camera = new engine.core.Camera();
+            this.camera.x = engine.designCanvasWidth / 2;
+            this.camera.y = engine.designCanvasHeight / 2;
+ 
+            this.joystick = new UIJoystick();
+            
+            engine.Start();
+        }
+        
+        Game.prototype.Frame = function (dt)
+        {
+            this.Update(dt);
+            this.Draw();
+        }
+        
+        Game.prototype.Update = function (dt)
+        {
+            if (this.joystick) {
+                this.joystick.Update(dt);
+                
+                var v1 = this.joystick.GetDirVector();
+                var v2 = this.car.frontWheel.body.GetWorldVector( new b2Vec2(0,1) );
+                if (v1.Length() > 0.0001){
+                    
+                    var forword = this.car.frontWheel.body.GetWorldVector( new b2Vec2(0,1) );
+                    forword.x *= this.car.enginePower;
+                    forword.y *= this.car.enginePower;
+                    this.car.frontWheel.body.ApplyForce(forword, this.car.frontWheel.body.GetWorldCenter());
+                    
+                    if( Math.abs(v1.x - v2.x) < 0.0001 &&
+                        Math.abs(v1.y - v2.y) < 0.0001) {
+                        return;
+                    }
+                    
+                    var v1a = Math.atan2(v1.y, v1.x);
+                    var v2a = Math.atan2(v2.y, v2.x);
+                    GameLog(Util.Degrees(v1a), Util.Degrees(v2a));
+                    if (v1a * v2a > 0) {
+                        if (v1a > v2a) {
+                            this.car.Turn(-1);
+                        }else{
+                            this.car.Turn(1);
+                        }
+                    }else {
+                        if (v1a > 0) {
+                            if (v1a - Math.PI < v2a) {
+                                this.car.Turn(-1)
+                            }else {
+                                this.car.Turn(1)
+                            }
+                        }else{
+                            if (v1a + Math.PI < v2a) {
+                                this.car.Turn(-1)
+                            }else {
+                                this.car.Turn(1);
+                            }
+                        }
+                    }
+                }else {
+                    this.car.Turn(0);
+                }
+                
+                //GameLog(v1.x, v1.y, v2.x, v2.y);
+            }
+    
+            this.car.Update(dt);
+            this.car2.Update(dt);
+        
+            this.physics.world.Step(
+               dt,      //frame-rate
+               1,      //velocity iterations
+               1       //position iterations
+            );
+        }
+        
+        Game.prototype.Draw = function ()
+        {
+            var ctx = engine.context;
+            ctx.save();
+            
+            ctx.fillStyle="black";
+            ctx.fillRect(0,0, ctx.canvas.width, ctx.canvas.height);
+            
+            // 使用相机
+            this.camera.Begin(ctx, engine.designCanvasWidth, engine.designCanvasHeight);
+            
+            this.car2.Draw(ctx);
+            this.car.Draw(ctx);
+            
+            this.physics.world.DrawDebugData();
+            this.physics.world.ClearForces();
+
+            // 结束相机
+            this.camera.End(ctx);
+            
+            if (this.joystick) {
+                this.joystick.Draw(ctx);
+            }
+    
+            ctx.restore();
+        }
+        
+        game = new Game();
+
+        function Start() {
+            game.Init();        
+        }
+    </script>
+</head>
+<body onload="Start()">
+    <div id="GameContent" style="width:320px; margin:0 auto; display:block;">
+    <canvas id='GameCanvas' width="320px" height="480px" style="background-color: #fff;position:absolute;top:0px;" oncontextmenu="return false">
+        <p>Can't load HTML 5 canvas: is your browser up to date?</p>
+    </canvas>
+    </div>
+</body>
+</html>
